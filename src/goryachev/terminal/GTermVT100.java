@@ -34,7 +34,7 @@ public class GTermVT100
 	protected static final Log log = Log.get("GTermVT100");
 	protected static final Log logRx = Log.get("GTermVT100.rx");
 	
-	protected final ITermView view;
+	protected ITermView view;
 	protected final CList<Integer> pushback = new CList();
 	protected final SB escapeSequence = new SB();
 	protected final CList<String> args = new CList();
@@ -44,7 +44,7 @@ public class GTermVT100
 	protected CReader rd;
 	protected CWriter wr;
 	private char highSurrogate;
-	private Thread thread;
+	private final Thread thread;
 	/** visible window x coordinate 0 ... colCount - 1 */
 	private int curx;
 	/** visible window y coordinate 0 ... rowCount - 1 */
@@ -56,20 +56,9 @@ public class GTermVT100
 	private int tabSize = 8;
 	
 	
-	public GTermVT100(ITermView v)
-	{
-		this.view = v;
-	}
-	
-	
-	public void setTermConnection(ITermConnection conn)
+	public GTermVT100(ITermConnection conn)
 	{
 		Objects.nonNull(conn);
-		if(connection != null)
-		{
-			throw new IllegalArgumentException("connection is already set");
-		}
-		
 		this.connection = conn;
 		
 		thread = new Thread(() ->
@@ -82,14 +71,16 @@ public class GTermVT100
 			{
 				log.error(e);
 			}
-			finally
-			{
-				thread = null;
-			}
 		});
 		thread.setName("terminal");
 		thread.setDaemon(true);
 		thread.start();
+	}
+	
+	
+	public void setView(ITermView v)
+	{
+		this.view = v;
 	}
 	
 	

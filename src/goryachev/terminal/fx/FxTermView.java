@@ -201,33 +201,50 @@ public class FxTermView
 		cursorAnimation.stop();
 		cursorAnimation.play();
 	}
-	
-	
+
+
 	protected TermKey getKey(KeyCode c)
 	{
 		switch(c)
 		{
-		case DOWN: return TermKey.DOWN;
-		case ENTER: return TermKey.ENTER;
-		case F1: return TermKey.F1;
-		case F2: return TermKey.F2;
-		case F3: return TermKey.F3;
-		case F4: return TermKey.F4;
-		case F5: return TermKey.F5;
-		case F6: return TermKey.F6;
-		case F7: return TermKey.F7;
-		case F8: return TermKey.F8;
-		case F9: return TermKey.F9;
-		case F10: return TermKey.F10;
-		case LEFT: return TermKey.LEFT;
-		case RIGHT: return TermKey.RIGHT;
-		case TAB: return TermKey.TAB;
-		case UP: return TermKey.UP;
-		default: return null;
+		case DOWN:
+			return TermKey.DOWN;
+		case ENTER:
+			return TermKey.ENTER;
+		case F1:
+			return TermKey.F1;
+		case F2:
+			return TermKey.F2;
+		case F3:
+			return TermKey.F3;
+		case F4:
+			return TermKey.F4;
+		case F5:
+			return TermKey.F5;
+		case F6:
+			return TermKey.F6;
+		case F7:
+			return TermKey.F7;
+		case F8:
+			return TermKey.F8;
+		case F9:
+			return TermKey.F9;
+		case F10:
+			return TermKey.F10;
+		case LEFT:
+			return TermKey.LEFT;
+		case RIGHT:
+			return TermKey.RIGHT;
+		case TAB:
+			return TermKey.TAB;
+		case UP:
+			return TermKey.UP;
+		default:
+			return null;
 		}
 	}
-	
-	
+
+
 	protected void handleKeyTyped(KeyEvent ev)
 	{
 		try
@@ -259,13 +276,11 @@ public class FxTermView
 	}
 	
 
-	public void onConnect(GTermVT100 t)
+	public void setTerm(GTermVT100 t)
 	{
-		FX.later(() ->
-		{
-			this.term = t;
-			repaint();
-		});
+		this.term = t;
+		t.setView(this);
+		repaint();
 	}
 	
 	

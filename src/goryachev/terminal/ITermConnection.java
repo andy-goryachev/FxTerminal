@@ -11,9 +11,9 @@ import java.nio.charset.Charset;
  */
 public interface ITermConnection extends Closeable
 {
-	public OutputStream getOutputStream();
+	public OutputStream getOutputStream() throws Exception;
 	
-	public InputStream getInputStream();
+	public InputStream getInputStream() throws Exception;
 	
 	public void setTerminalSize(int cols, int rows, int width, int height);
 

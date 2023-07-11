@@ -5,24 +5,14 @@
 <project default="build-all" basedir=".">
 
 	<!-- project config -->
-	<property name="TARGET" value="AccessPanel"/>
-	<property name="MAIN_CLASS" value="goryachev.access.AccessPanelApp"/>
+	<property name="TARGET" value="FxTerminalDemo"/>
+	<property name="MAIN_CLASS" value="goryachev.demo.terminal.TermDemoApp"/>
 
 	<!-- libraries -->
 	<path id="libs">
-		<pathelement location="lib/bouncycastle/bcprov-jdk15on-169.jar" />
+		<!--
 		<pathelement location="lib/gson/gson-2.8.6.jar" />
-		<pathelement location="lib/jsch/jsch-0.1.54.jar" />
-		<pathelement location="lib/jzlib/jzlib-1.1.3.jar" />
-		<pathelement location="lib/jfxvnc/netty-buffer-4.1.28.Final.jar" />
-		<pathelement location="lib/jfxvnc/netty-codec-4.1.28.Final.jar" />
-		<pathelement location="lib/jfxvnc/netty-common-4.1.28.Final.jar" />
-		<pathelement location="lib/jfxvnc/netty-handler-4.1.28.Final.jar" />
-		<pathelement location="lib/jfxvnc/netty-resolver-4.1.28.Final.jar" />
-		<pathelement location="lib/jfxvnc/netty-transport-4.1.28.Final.jar" />
-		<pathelement location="lib/jfxvnc/slf4j-api-1.7.25.jar" />
-		<pathelement location="lib/jsoup/jsoup-1.14.3.jar" />
-		<pathelement location="lib/to-be-removed/log4j-1.2.14.jar" />
+		-->
 	</path>
 
 
