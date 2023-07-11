@@ -1,7 +1,6 @@
 // Copyright © 2018-2023 Andy Goryachev <andy@goryachev.com>
 package goryachev.terminal;
 import goryachev.common.io.CReader;
-import goryachev.common.io.CWriter;
 import goryachev.common.log.Log;
 import goryachev.common.util.ASCII;
 import goryachev.common.util.CKit;
@@ -10,6 +9,9 @@ import goryachev.common.util.Hex;
 import goryachev.common.util.SB;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.Writer;
 import java.nio.charset.Charset;
 import java.util.Objects;
 
@@ -41,8 +43,8 @@ public class GTermVT100
 	protected final SB arg = new SB();
 	protected ITermConnection connection;
 	protected boolean running;
-	protected CReader rd;
-	protected CWriter wr;
+	protected Reader rd;
+	protected Writer wr;
 	private char highSurrogate;
 	private final Thread thread;
 	/** visible window x coordinate 0 ... colCount - 1 */
@@ -94,7 +96,9 @@ public class GTermVT100
 				OutputStream out = connection.getOutputStream();
 				InputStream in = connection.getInputStream();
 				
-				wr = new CWriter(out, cs);
+				// TODO perhaps this should not be buffered
+				wr = new OutputStreamWriter(out, cs);
+				
 				rd = new CReader(in, cs);
 
 				reset();
@@ -200,6 +204,11 @@ public class GTermVT100
 		catch(Throwable e)
 		{
 			log.error(e);
+		}
+		finally
+		{
+			CKit.close(rd);
+			CKit.close(wr);
 		}
 	}
 	

@@ -1,5 +1,6 @@
 // Copyright © 2023 Andy Goryachev <andy@goryachev.com>
 package goryachev.terminal;
+import goryachev.common.log.Log;
 import goryachev.common.util.CPlatform;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,6 +14,7 @@ import java.nio.charset.Charset;
 public class LocalTermConnection
 	implements ITermConnection
 {
+	protected static final Log log = Log.get("LocalTermConnection");
 	private Process shell;
 
 
@@ -42,22 +44,46 @@ public class LocalTermConnection
 	{
 		if(shell == null)
 		{
-			String[] cmd;
-			if(CPlatform.isWindows())
+			synchronized(this)
 			{
-				cmd = new String[]
+				if(shell == null)
 				{
-					"cmd.exe"
-				};
+					String[] cmd;
+					if(CPlatform.isWindows())
+					{
+						cmd = new String[]
+						{
+							"cmd.exe"
+						};
+					}
+					else
+					{
+						cmd = new String[]
+						{
+							"/bin/bash"
+						};
+					}
+					shell = Runtime.getRuntime().exec(cmd);
+					
+					// FIX remove
+					var when = shell.onExit();
+					new Thread("waiting")
+					{
+						public void run()
+						{
+							try
+							{
+								Process p = when.get();
+								log.info("Finished %s", p);
+							}
+							catch(Throwable e)
+							{
+								log.error(e);
+							}
+						}
+					}.start();
+				}
 			}
-			else
-			{
-				cmd = new String[]
-				{
-					"/bin/bash"
-				};
-			}
-			shell = Runtime.getRuntime().exec(cmd);
 		}
 		return shell;
 	}
