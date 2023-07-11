@@ -8,18 +8,10 @@ import goryachev.common.util.CKit;
 import goryachev.common.util.CList;
 import goryachev.common.util.Hex;
 import goryachev.common.util.SB;
-import goryachev.memsafecrypto.Crypto;
-import goryachev.memsafecrypto.OpaqueChars;
-import goryachev.memsafecrypto.util.CUtils;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
-import java.util.function.Consumer;
-import com.jcraft.jsch.ChannelShell;
-import com.jcraft.jsch.HostKeyRepository;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.Session;
-import com.jcraft.jsch.UserInfo;
+import java.util.Objects;
 
 
 /**
@@ -43,13 +35,11 @@ public class GTermVT100
 	protected static final Log logRx = Log.get("GTermVT100.rx");
 	
 	protected final ITermView view;
-	protected final UserInfo ui;
 	protected final CList<Integer> pushback = new CList();
 	protected final SB escapeSequence = new SB();
 	protected final CList<String> args = new CList();
 	protected final SB arg = new SB();
-	protected Session session;
-	protected ChannelShell channel;
+	protected ITermConnection connection;
 	protected boolean running;
 	protected CReader rd;
 	protected CWriter wr;
@@ -66,49 +56,179 @@ public class GTermVT100
 	private int tabSize = 8;
 	
 	
-	public GTermVT100(ITermView v, UserInfo ui)
+	public GTermVT100(ITermView v)
 	{
 		this.view = v;
-		this.ui = ui;
 	}
 	
 	
-	protected Session createSession(String host, int port, String user, OpaqueChars password, Charset cs, HostKeyRepository hkr) throws Exception
+	public void setTermConnection(ITermConnection conn)
 	{
-		Session s = new JSch().getSession(user, host, port);
-		s.setTimeout(60000);
-		if(password != null)
+		Objects.nonNull(conn);
+		if(connection != null)
 		{
-			// FIX leaks secrets
-			byte[] pw = CUtils.charsToBytes(password, cs);
-			if(pw != null)
+			throw new IllegalArgumentException("connection is already set");
+		}
+		
+		this.connection = conn;
+		
+		thread = new Thread(() ->
+		{
+			try
 			{
-				try
+				connectionLoop();
+			}
+			catch(Throwable e)
+			{
+				log.error(e);
+			}
+			finally
+			{
+				thread = null;
+			}
+		});
+		thread.setName("terminal");
+		thread.setDaemon(true);
+		thread.start();
+	}
+	
+	
+	public void connectionLoop()
+	{
+		try
+		{
+			try
+			{
+				Charset cs = connection.getCharset();
+				OutputStream out = connection.getOutputStream();
+				InputStream in = connection.getInputStream();
+				
+				wr = new CWriter(out, cs);
+				rd = new CReader(in, cs);
+
+				reset();
+				
+				running = true;
+				while(running)
 				{
-					s.setPassword(pw);
-				}
-				finally
-				{
-					Crypto.zero(pw);
+					int c = readCodePoint();
+					logRx.trace("%04x (%c)", c, (char)c);
+										
+					switch(c)
+					{
+					case ASCII.BEL:
+						view.bell();
+						break;
+					case ASCII.BS:
+						backspace();
+						break;
+					case ASCII.ENQ:
+						// Return Terminal Status (ENQ  is Ctrl-E).  Default response is
+				        // an empty string, but may be overridden by a resource answer-backString (xterm).
+						enq();
+						break;
+					case ASCII.FF:
+						// Form Feed or New Page (NP ).  (FF  is Ctrl-L).  FF  is treated the same as LF .
+						linefeed();
+						break;
+					case ASCII.HT:
+						tab();
+						break;
+					case ASCII.LF:
+						linefeed();
+						break;
+					case ASCII.CR:
+						carriageReturn();
+						break;
+					case ASCII.SI:
+						// TODO
+						// Switch to Standard Character Set (Ctrl-O is Shift In or LS0).
+				        // This invokes the G0 character set (the default) as GL.
+				        // VT200 and up implement LS0.
+						log.error("SI");
+						break;
+					case ASCII.SO:
+						// TODO
+						// Switch to Alternate Character Set (Ctrl-N is Shift Out or
+					    // LS1).  This invokes the G1 character set as GL.
+					    // VT200 and up implement LS1.
+						log.error("SO");
+						break;
+					case ASCII.ESC:
+						processEscapeSequence();
+						break;
+					case ASCII.VT:
+						// Vertical Tab (VT  is Ctrl-K).  This is treated the same as LF.
+						linefeed();
+						break;
+					default:
+						if(c < 0)
+						{
+							running = false;
+						}
+						else if(c < ASCII.SPACE)
+						{
+							log.info("unknown input 0x%02X", c);
+						}
+						else
+						{
+							hideCursor();
+							
+							if((curx >= colCount) || (cury == rowCount))
+							{
+								carriageReturn();
+								linefeed();
+							}
+							
+							int dx = view.draw(curx, cury, c);
+							if(dx < 0)
+							{
+								carriageReturn();
+								linefeed();
+								
+								dx = view.draw(curx, cury, c);
+							}
+							curx += dx;
+							
+							if(curx >= colCount)
+							{
+								carriageReturn();
+								linefeed();
+							}
+							
+							showCursor();
+						}
+					}
 				}
 			}
+			finally
+			{
+				shutdown();
+			}
 		}
-		s.setUserInfo(ui);
-		if(hkr != null)
+		catch(Throwable e)
 		{
-			s.setHostKeyRepository(hkr);
+			log.error(e);
 		}
-		s.connect(60000);
-		s.setServerAliveInterval(60000);
-		return s;
 	}
 	
 	
 	public void shutdown()
 	{
-		if(session != null)
+		if(connection != null)
 		{
-			session.disconnect();
+			try
+			{
+				connection.close();
+			}
+			catch(Throwable e)
+			{
+				log.error(e);
+			}
+			finally
+			{
+				connection = null;
+			}
 		}
 	}
 	
@@ -304,169 +424,14 @@ public class GTermVT100
 		}
 	}
 	
-	
-	public void connect(String host, int port, String user, OpaqueChars pw, Charset cs, HostKeyRepository hkr, Consumer<Throwable> errorHandler)
-	{
-		if(thread != null)
-		{
-			throw new Error("already started"); 
-		}
-		
-		thread = new Thread(() ->
-		{
-			try
-			{
-				connectionLoop(host, port, user, pw, cs, hkr, errorHandler);
-			}
-			catch(Throwable e)
-			{
-				log.error(e);
-			}
-			finally
-			{
-				thread = null;
-			}
-		});
-		thread.setName("terminal");
-		thread.setDaemon(true);
-		thread.start();
-	}
-	
-	
-	// FIX replace onconnect with call to term view
-	public void connectionLoop(String host, int port, String user, OpaqueChars pw, Charset cs, HostKeyRepository hkr, Consumer<Throwable> onConnect)
-	{
-		try
-		{
-			session = createSession(host, port, user, pw, cs, hkr);
-			
-			channel = (ChannelShell)session.openChannel("shell");
-			try
-			{
-				OutputStream out = channel.getOutputStream();
-				InputStream in = channel.getInputStream();
-				
-				wr = new CWriter(out, cs);
-				rd = new CReader(in, cs);
-		
-				channel.connect();
-
-				onConnect.accept(null);
-				
-				reset();
-				
-				running = true;
-				while(running)
-				{
-					int c = readCodePoint();
-					logRx.trace("%04x (%c)", c, (char)c);
-										
-					switch(c)
-					{
-					case ASCII.BEL:
-						view.bell();
-						break;
-					case ASCII.BS:
-						backspace();
-						break;
-					case ASCII.ENQ:
-						// Return Terminal Status (ENQ  is Ctrl-E).  Default response is
-				        // an empty string, but may be overridden by a resource answer-backString (xterm).
-						enq();
-						break;
-					case ASCII.FF:
-						// Form Feed or New Page (NP ).  (FF  is Ctrl-L).  FF  is treated the same as LF .
-						linefeed();
-						break;
-					case ASCII.HT:
-						tab();
-						break;
-					case ASCII.LF:
-						linefeed();
-						break;
-					case ASCII.CR:
-						carriageReturn();
-						break;
-					case ASCII.SI:
-						// TODO
-						// Switch to Standard Character Set (Ctrl-O is Shift In or LS0).
-				        // This invokes the G0 character set (the default) as GL.
-				        // VT200 and up implement LS0.
-						log.error("SI");
-						break;
-					case ASCII.SO:
-						// TODO
-						// Switch to Alternate Character Set (Ctrl-N is Shift Out or
-					    // LS1).  This invokes the G1 character set as GL.
-					    // VT200 and up implement LS1.
-						log.error("SO");
-						break;
-					case ASCII.ESC:
-						processEscapeSequence();
-						break;
-					case ASCII.VT:
-						// Vertical Tab (VT  is Ctrl-K).  This is treated the same as LF.
-						linefeed();
-						break;
-					default:
-						if(c < 0)
-						{
-							running = false;
-						}
-						else if(c < ASCII.SPACE)
-						{
-							log.info("unknown input 0x%02X", c);
-						}
-						else
-						{
-							hideCursor();
-							
-							if((curx >= colCount) || (cury == rowCount))
-							{
-								carriageReturn();
-								linefeed();
-							}
-							
-							int dx = view.draw(curx, cury, c);
-							if(dx < 0)
-							{
-								carriageReturn();
-								linefeed();
-								
-								dx = view.draw(curx, cury, c);
-							}
-							curx += dx;
-							
-							if(curx >= colCount)
-							{
-								carriageReturn();
-								linefeed();
-							}
-							
-							showCursor();
-						}
-					}
-				}
-			}
-			finally
-			{
-				channel.disconnect();
-			}
-		}
-		catch(Throwable e)
-		{
-			onConnect.accept(e);
-		}
-	}
-	
 
 	public void requestSize(int cols, int rows, int width, int height)
 	{
 		reset();
 		
-		if(channel != null)
+		if(connection != null)
 		{
-			channel.setPtySize(cols, rows, width, height);
+			connection.setTerminalSize(cols, rows, width, height);
 		}
 		
 		// TODO

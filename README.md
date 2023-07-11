@@ -1,2 +1,5 @@
 # FxTerminal
-JavaFX-based terminal emulator
+
+JavaFX-based terminal emulator.
+
+**WORK IN PROGRESS**
