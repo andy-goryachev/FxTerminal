@@ -1,0 +1,9 @@
+/build/
+/out/
+/user.home*/
+/user.data*/
+~*
+/*.jar
+/*.log
+/*.conf
+hs_err_pid*
