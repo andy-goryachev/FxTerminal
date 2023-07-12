@@ -4,7 +4,7 @@ import goryachev.common.log.Log;
 import goryachev.common.util.CPlatform;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.Writer;
 import java.nio.charset.Charset;
 
 
@@ -28,9 +28,9 @@ public class LocalTermConnection
 	}
 
 
-	public OutputStream getOutputStream() throws Exception
+	public Writer getOutputWriter() throws Exception
 	{
-		return shell().getOutputStream();
+		return shell().outputWriter();
 	}
 
 

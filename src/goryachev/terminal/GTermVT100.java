@@ -8,8 +8,6 @@ import goryachev.common.util.CList;
 import goryachev.common.util.Hex;
 import goryachev.common.util.SB;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.Charset;
@@ -46,7 +44,7 @@ public class GTermVT100
 	protected Reader rd;
 	protected Writer wr;
 	private char highSurrogate;
-	private final Thread thread;
+	private Thread thread;
 	/** visible window x coordinate 0 ... colCount - 1 */
 	private int curx;
 	/** visible window y coordinate 0 ... rowCount - 1 */
@@ -58,11 +56,28 @@ public class GTermVT100
 	private int tabSize = 8;
 	
 	
-	public GTermVT100(ITermConnection conn)
+	public GTermVT100()
+	{
+	}
+	
+	
+	public void connect(ITermConnection conn) throws Exception
 	{
 		Objects.nonNull(conn);
 		this.connection = conn;
 		
+		Charset cs = connection.getCharset();
+		InputStream in = connection.getInputStream();
+		
+		wr = connection.getOutputWriter();
+		
+		// FIX
+		//wr.write("help\r");
+		wr.write("help\r\n");
+		wr.flush();
+		
+		rd = new CReader(in, cs);
+
 		thread = new Thread(() ->
 		{
 			try
@@ -83,6 +98,7 @@ public class GTermVT100
 	public void setView(ITermView v)
 	{
 		this.view = v;
+		reset();
 	}
 	
 	
@@ -90,115 +106,97 @@ public class GTermVT100
 	{
 		try
 		{
-			try
+			running = true;
+			while(running)
 			{
-				Charset cs = connection.getCharset();
-				OutputStream out = connection.getOutputStream();
-				InputStream in = connection.getInputStream();
-				
-				// TODO perhaps this should not be buffered
-				wr = new OutputStreamWriter(out, cs);
-				
-				rd = new CReader(in, cs);
-
-				reset();
-				
-				running = true;
-				while(running)
+				int c = readCodePoint();
+				logRx.trace("%04x (%c)", c, (char)c);
+									
+				switch(c)
 				{
-					int c = readCodePoint();
-					logRx.trace("%04x (%c)", c, (char)c);
-										
-					switch(c)
+				case ASCII.BEL:
+					view.bell();
+					break;
+				case ASCII.BS:
+					backspace();
+					break;
+				case ASCII.ENQ:
+					// Return Terminal Status (ENQ  is Ctrl-E).  Default response is
+			        // an empty string, but may be overridden by a resource answer-backString (xterm).
+					enq();
+					break;
+				case ASCII.FF:
+					// Form Feed or New Page (NP ).  (FF  is Ctrl-L).  FF  is treated the same as LF .
+					linefeed();
+					break;
+				case ASCII.HT:
+					tab();
+					break;
+				case ASCII.LF:
+					linefeed();
+					break;
+				case ASCII.CR:
+					carriageReturn();
+					break;
+				case ASCII.SI:
+					// TODO
+					// Switch to Standard Character Set (Ctrl-O is Shift In or LS0).
+			        // This invokes the G0 character set (the default) as GL.
+			        // VT200 and up implement LS0.
+					log.error("SI");
+					break;
+				case ASCII.SO:
+					// TODO
+					// Switch to Alternate Character Set (Ctrl-N is Shift Out or
+				    // LS1).  This invokes the G1 character set as GL.
+				    // VT200 and up implement LS1.
+					log.error("SO");
+					break;
+				case ASCII.ESC:
+					processEscapeSequence();
+					break;
+				case ASCII.VT:
+					// Vertical Tab (VT  is Ctrl-K).  This is treated the same as LF.
+					linefeed();
+					break;
+				default:
+					if(c < 0)
 					{
-					case ASCII.BEL:
-						view.bell();
-						break;
-					case ASCII.BS:
-						backspace();
-						break;
-					case ASCII.ENQ:
-						// Return Terminal Status (ENQ  is Ctrl-E).  Default response is
-				        // an empty string, but may be overridden by a resource answer-backString (xterm).
-						enq();
-						break;
-					case ASCII.FF:
-						// Form Feed or New Page (NP ).  (FF  is Ctrl-L).  FF  is treated the same as LF .
-						linefeed();
-						break;
-					case ASCII.HT:
-						tab();
-						break;
-					case ASCII.LF:
-						linefeed();
-						break;
-					case ASCII.CR:
-						carriageReturn();
-						break;
-					case ASCII.SI:
-						// TODO
-						// Switch to Standard Character Set (Ctrl-O is Shift In or LS0).
-				        // This invokes the G0 character set (the default) as GL.
-				        // VT200 and up implement LS0.
-						log.error("SI");
-						break;
-					case ASCII.SO:
-						// TODO
-						// Switch to Alternate Character Set (Ctrl-N is Shift Out or
-					    // LS1).  This invokes the G1 character set as GL.
-					    // VT200 and up implement LS1.
-						log.error("SO");
-						break;
-					case ASCII.ESC:
-						processEscapeSequence();
-						break;
-					case ASCII.VT:
-						// Vertical Tab (VT  is Ctrl-K).  This is treated the same as LF.
-						linefeed();
-						break;
-					default:
-						if(c < 0)
+						running = false;
+					}
+					else if(c < ASCII.SPACE)
+					{
+						log.info("unknown input 0x%02X", c);
+					}
+					else
+					{
+						hideCursor();
+						
+						if((curx >= colCount) || (cury == rowCount))
 						{
-							running = false;
+							carriageReturn();
+							linefeed();
 						}
-						else if(c < ASCII.SPACE)
+						
+						int dx = view.draw(curx, cury, c);
+						if(dx < 0)
 						{
-							log.info("unknown input 0x%02X", c);
+							carriageReturn();
+							linefeed();
+							
+							dx = view.draw(curx, cury, c);
 						}
-						else
+						curx += dx;
+						
+						if(curx >= colCount)
 						{
-							hideCursor();
-							
-							if((curx >= colCount) || (cury == rowCount))
-							{
-								carriageReturn();
-								linefeed();
-							}
-							
-							int dx = view.draw(curx, cury, c);
-							if(dx < 0)
-							{
-								carriageReturn();
-								linefeed();
-								
-								dx = view.draw(curx, cury, c);
-							}
-							curx += dx;
-							
-							if(curx >= colCount)
-							{
-								carriageReturn();
-								linefeed();
-							}
-							
-							showCursor();
+							carriageReturn();
+							linefeed();
 						}
+						
+						showCursor();
 					}
 				}
-			}
-			finally
-			{
-				shutdown();
 			}
 		}
 		catch(Throwable e)
@@ -207,14 +205,16 @@ public class GTermVT100
 		}
 		finally
 		{
-			CKit.close(rd);
-			CKit.close(wr);
+			shutdown();
 		}
 	}
 	
 	
 	public void shutdown()
 	{
+		CKit.close(rd);
+		CKit.close(wr);
+
 		if(connection != null)
 		{
 			try
