@@ -3,9 +3,8 @@ package goryachev.terminal;
 import goryachev.common.log.Log;
 import goryachev.common.util.CPlatform;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.Reader;
 import java.io.Writer;
-import java.nio.charset.Charset;
 
 
 /**
@@ -34,9 +33,9 @@ public class LocalTermConnection
 	}
 
 
-	public InputStream getInputStream() throws Exception
+	public Reader getInputReader() throws Exception
 	{
-		return shell().getInputStream();
+		return shell().inputReader();
 	}
 	
 	
@@ -92,11 +91,5 @@ public class LocalTermConnection
 	public void setTerminalSize(int cols, int rows, int width, int height)
 	{
 		// TODO
-	}
-
-
-	public Charset getCharset()
-	{
-		return Charset.defaultCharset();
 	}
 }

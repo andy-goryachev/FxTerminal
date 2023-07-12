@@ -1,16 +1,13 @@
 // Copyright © 2018-2023 Andy Goryachev <andy@goryachev.com>
 package goryachev.terminal;
-import goryachev.common.io.CReader;
 import goryachev.common.log.Log;
 import goryachev.common.util.ASCII;
 import goryachev.common.util.CKit;
 import goryachev.common.util.CList;
 import goryachev.common.util.Hex;
 import goryachev.common.util.SB;
-import java.io.InputStream;
 import java.io.Reader;
 import java.io.Writer;
-import java.nio.charset.Charset;
 import java.util.Objects;
 
 
@@ -66,8 +63,7 @@ public class GTermVT100
 		Objects.nonNull(conn);
 		this.connection = conn;
 		
-		Charset cs = connection.getCharset();
-		InputStream in = connection.getInputStream();
+		rd = connection.getInputReader();
 		
 		wr = connection.getOutputWriter();
 		
@@ -76,8 +72,6 @@ public class GTermVT100
 		wr.write("help\r\n");
 		wr.flush();
 		
-		rd = new CReader(in, cs);
-
 		thread = new Thread(() ->
 		{
 			try
