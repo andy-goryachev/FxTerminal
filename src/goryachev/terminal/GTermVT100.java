@@ -67,16 +67,11 @@ public class GTermVT100
 		
 		wr = connection.getOutputWriter();
 		
-		// FIX
-		//wr.write("help\r");
-		wr.write("help\r\n");
-		wr.flush();
-		
 		thread = new Thread(() ->
 		{
 			try
 			{
-				connectionLoop();
+				readProcess();
 			}
 			catch(Throwable e)
 			{
@@ -96,7 +91,7 @@ public class GTermVT100
 	}
 	
 	
-	public void connectionLoop()
+	public void readProcess()
 	{
 		try
 		{
@@ -234,6 +229,12 @@ public class GTermVT100
 		{
 			throw new Error("?" + k);
 		}
+		out(s);
+	}
+	
+	
+	protected void out(String s) throws Exception
+	{
 		wr.write(s);
 		wr.flush();
 	}
@@ -284,8 +285,7 @@ public class GTermVT100
 	public void handleKey(int c) throws Exception
 	{
 		String s = TermTools.codePointToString(c);
-		wr.write(s);
-		wr.flush();
+		out(s);
 	}
 	
 	

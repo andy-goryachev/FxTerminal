@@ -52,7 +52,7 @@ public class LocalTermConnection
 					{
 						cmd = new String[]
 						{
-							"cmd.exe"
+							"Powershell.exe"
 						};
 					}
 					else
@@ -66,7 +66,7 @@ public class LocalTermConnection
 					
 					// FIX remove
 					var when = shell.onExit();
-					new Thread("waiting")
+					Thread t = new Thread("waiting")
 					{
 						public void run()
 						{
@@ -80,7 +80,9 @@ public class LocalTermConnection
 								log.error(e);
 							}
 						}
-					}.start();
+					};
+					t.setDaemon(true);
+					t.start();
 				}
 			}
 		}
