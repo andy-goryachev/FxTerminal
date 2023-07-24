@@ -26,7 +26,7 @@ import java.util.Objects;
  * 
  * http://invisible-island.net/xterm/ctlseqs/ctlseqs.html
  */
-public class GTermVT100
+public class GTermVT100 implements ITermEmulator
 {
 	protected static final Log log = Log.get("GTermVT100");
 	protected static final Log logRx = Log.get("GTermVT100.rx");
@@ -36,10 +36,10 @@ public class GTermVT100
 	protected final SB escapeSequence = new SB();
 	protected final CList<String> args = new CList();
 	protected final SB arg = new SB();
-	protected ITermConnection connection;
+	protected ATermConnection connection;
 	protected boolean running;
-	protected Reader rd;
-	protected Writer wr;
+	protected Reader rd; // FIX remove
+	protected Writer wr; // FIX remove
 	private char highSurrogate;
 	private Thread thread;
 	/** visible window x coordinate 0 ... colCount - 1 */
@@ -58,30 +58,31 @@ public class GTermVT100
 	}
 	
 	
-	public void connect(ITermConnection conn) throws Exception
-	{
-		Objects.nonNull(conn);
-		this.connection = conn;
-		
-		rd = connection.getInputReader();
-		
-		wr = connection.getOutputWriter();
-		
-		thread = new Thread(() ->
-		{
-			try
-			{
-				readProcess();
-			}
-			catch(Throwable e)
-			{
-				log.error(e);
-			}
-		});
-		thread.setName("terminal");
-		thread.setDaemon(true);
-		thread.start();
-	}
+//	public void connect(ATermConnection conn) throws Exception
+//	{
+//		Objects.nonNull(conn);
+//		this.connection = conn;
+//		
+//		rd = connection.getInputReader();
+//		
+//		wr = connection.getOutputWriter();
+//
+//		// TODO move to caller
+//		thread = new Thread(() ->
+//		{
+//			try
+//			{
+//				readProcess();
+//			}
+//			catch(Throwable e)
+//			{
+//				log.error(e);
+//			}
+//		});
+//		thread.setName("terminal");
+//		thread.setDaemon(true);
+//		thread.start();
+//	}
 	
 	
 	public void setView(ITermView v)
@@ -90,7 +91,8 @@ public class GTermVT100
 		reset();
 	}
 	
-	
+
+	// TODO move to connection
 	public void readProcess()
 	{
 		try
@@ -282,9 +284,9 @@ public class GTermVT100
 	}
 	
 	
-	public void handleKey(int c) throws Exception
+	public void handleKey(int ch) throws Exception
 	{
-		String s = TermTools.codePointToString(c);
+		String s = TermTools.codePointToString(ch);
 		out(s);
 	}
 	
@@ -419,7 +421,7 @@ public class GTermVT100
 	}
 	
 
-	public void requestSize(int cols, int rows, int width, int height)
+	public void setTerminalSize(int cols, int rows, int width, int height)
 	{
 		reset();
 		

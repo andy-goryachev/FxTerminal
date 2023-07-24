@@ -2,96 +2,161 @@
 package goryachev.terminal;
 import goryachev.common.log.Log;
 import goryachev.common.util.CPlatform;
+import goryachev.common.util.SystemTask;
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
+import java.util.concurrent.CompletableFuture;
 
 
 /**
- * Local Terminal Connection.
+ * Local Terminal Connection: starts an OS-specific shell process.
  */
 public class LocalTermConnection
-	implements ITermConnection
+	extends ATermConnection<LocalCommandTerminalEmulator>
 {
 	protected static final Log log = Log.get("LocalTermConnection");
-	private Process shell;
+	private volatile Process process;
 
 
 	public LocalTermConnection()
 	{
+		super(new LocalCommandTerminalEmulator());
 	}
 
 
 	public void close() throws IOException
 	{
-	}
-
-
-	public Writer getOutputWriter() throws Exception
-	{
-		return shell().outputWriter();
-	}
-
-
-	public Reader getInputReader() throws Exception
-	{
-		return shell().inputReader();
-	}
-	
-	
-	protected Process shell() throws Exception
-	{
-		if(shell == null)
+		Process p = process;
+		if(p != null)
 		{
-			synchronized(this)
+			p.destroy();
+			process = null;
+			
+			SystemTask.schedule(750, () ->
 			{
-				if(shell == null)
-				{
-					String[] cmd;
-					if(CPlatform.isWindows())
-					{
-						cmd = new String[]
-						{
-							"Powershell.exe"
-						};
-					}
-					else
-					{
-						cmd = new String[]
-						{
-							"/bin/bash"
-						};
-					}
-					shell = Runtime.getRuntime().exec(cmd);
-					
-					// FIX remove
-					var when = shell.onExit();
-					Thread t = new Thread("waiting")
-					{
-						public void run()
-						{
-							try
-							{
-								Process p = when.get();
-								log.info("Finished %s", p);
-							}
-							catch(Throwable e)
-							{
-								log.error(e);
-							}
-						}
-					};
-					t.setDaemon(true);
-					t.start();
-				}
-			}
+				p.destroyForcibly();	
+			});
 		}
-		return shell;
 	}
 
 
 	public void setTerminalSize(int cols, int rows, int width, int height)
 	{
-		// TODO
+		// no-op
+	}
+
+
+	public void connect(ITermView view)
+	{
+		emulator().setView(view);
+		emulator().setConnection(this);
+
+		try
+		{
+			String[] cmd;
+			if(CPlatform.isWindows())
+			{
+				cmd = new String[]
+				{
+					"Powershell.exe"
+				};
+			}
+			else
+			{
+				cmd = new String[]
+				{
+					"/bin/bash"
+				};
+			}
+			
+			process = Runtime.getRuntime().exec(cmd);
+			
+			CompletableFuture<Process> onExit = process.onExit();
+			Thread t = new Thread("process monitor")
+			{
+				public void run()
+				{
+					try
+					{
+						Process p = onExit.get();
+						log.info("Finished %s", p);
+						fireDisconnected(null);
+					}
+					catch(Throwable e)
+					{
+						log.error(e);
+						fireDisconnected(e);
+					}
+				}
+			};
+			t.setDaemon(true);
+			t.start();
+			
+			BufferedReader stdout = process.inputReader();
+			Thread stdoutThread = new Thread("stdout reader")
+			{
+				public void run()
+				{
+					try
+					{
+						for(;;)
+						{
+							int c = stdout.read();
+							if(c < 0)
+							{
+								return;
+							}
+							
+							emulator().writeStdout(c);
+						}
+					}
+					catch(Throwable ignore)
+					{ }
+				}
+			};
+			stdoutThread.setDaemon(true);
+			stdoutThread.start();
+			
+			BufferedReader stderr = process.errorReader();
+			Thread stderrThread = new Thread("stdout reader")
+			{
+				public void run()
+				{
+					try
+					{
+						for(;;)
+						{
+							int c = stderr.read();
+							if(c < 0)
+							{
+								return;
+							}
+							
+							emulator().writeStderr(c);
+						}
+					}
+					catch(Throwable ignore)
+					{ }
+				}
+			};
+			stderrThread.setDaemon(true);
+			stderrThread.start();
+		}
+		catch(Throwable e)
+		{
+			log.error(e);
+			fireDisconnected(e);
+		}
+	}
+
+
+	public void userInput(String ch) throws IOException
+	{
+		Process p = process;
+		if(p != null)
+		{
+			p.outputWriter().write(ch);
+			p.outputWriter().flush();
+		}
 	}
 }

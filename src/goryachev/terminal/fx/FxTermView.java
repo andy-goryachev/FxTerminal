@@ -6,14 +6,17 @@ import goryachev.common.util.D;
 import goryachev.fx.CPane;
 import goryachev.fx.CssStyle;
 import goryachev.fx.FX;
-import goryachev.terminal.GTermVT100;
+import goryachev.fx.FxObject;
 import goryachev.terminal.ITermView;
 import goryachev.terminal.TermColor;
+import goryachev.terminal.ATermConnection;
 import goryachev.terminal.TermKey;
 import goryachev.terminal.TermTools;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyProperty;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -38,9 +41,18 @@ public class FxTermView
 	extends CPane
 	implements ITermView
 {
+	public enum Status
+	{
+		CONNECTED,
+		CONNECTING,
+		DISCONNECTED,
+		ERROR
+	}
+	
+	protected static final Log log = Log.get("FxTermView");
+
 	public static final CssStyle PANE = new CssStyle("FxTermView_PANE");
 
-	protected static final Log log = Log.get("FxTermView");
 	public final TermScreenBuffer buffer;
 	protected final Object lock = new Object();
 	protected final TermPalette palette = new TermPalette();
@@ -51,7 +63,6 @@ public class FxTermView
 	private Font font;
 	private TextMetrics metrics;
 	private Canvas canvas;
-	private GTermVT100 term;
 	private int topLine;
 	protected int rowCount;
 	protected int colCount;
@@ -67,6 +78,9 @@ public class FxTermView
 	private boolean italic;
 	private boolean reversed;
 	private boolean underscore;
+	private final FxObject<ATermConnection> connection = new FxObject<>();
+	private final FxObject<Status> status = new FxObject<>();
+	private ATermConnection.Listener listener;
 			
 	
 	public FxTermView()
@@ -87,10 +101,11 @@ public class FxTermView
 		setFont(new Font("Courier New", 11.0));
 
 		setFocusTraversable(true);
-		addEventFilter(KeyEvent.KEY_PRESSED, this::handleKeyPressed);
-		addEventFilter(KeyEvent.KEY_TYPED, this::handleKeyTyped);
-		addEventFilter(MouseEvent.MOUSE_PRESSED, (ev) -> requestFocus());
+		addEventHandler(KeyEvent.KEY_PRESSED, this::handleKeyPressed);
+		addEventHandler(KeyEvent.KEY_TYPED, this::handleKeyTyped);
+		addEventHandler(MouseEvent.MOUSE_PRESSED, (ev) -> requestFocus());
 		
+		connection.addListener((s,p,c) -> handleConnectionChange(p,c));
 		FX.onChange(this::handleSizeChange, true, widthProperty(), heightProperty());
 	}
 	
@@ -103,6 +118,7 @@ public class FxTermView
 
 	public void setFont(Font f)
 	{
+		// TODO property
 		if(f == null)
 		{
 			throw new NullPointerException("font");
@@ -148,9 +164,10 @@ public class FxTermView
 		log.debug("dy=%d cury=%d", dy, cury); // FIX
 		cury -= dy;
 		
-		if(term != null)
+		ATermConnection conn = getConnection();
+		if(conn != null)
 		{
-			term.requestSize(colCount, rowCount, (int)canvas.getWidth(), (int)canvas.getHeight());
+			conn.setTerminalSize(colCount, rowCount, (int)canvas.getWidth(), (int)canvas.getHeight());
 		}
 		
 		repaint();
@@ -166,27 +183,26 @@ public class FxTermView
 	
 	protected void handleKeyPressed(KeyEvent ev)
 	{
-		if(term == null)
+		ATermConnection conn = getConnection();
+		if(conn != null)
 		{
-			return;
-		}
-		
-		KeyCode c = ev.getCode();
-		TermKey k = getKey(c);
-		if(k != null)
-		{
-			try
+			KeyCode c = ev.getCode();
+			TermKey k = getKey(c);
+			if(k != null)
 			{
-				term.handleKey(k);
-				ev.consume();
+				try
+				{
+					conn.handleKey(k);
+					ev.consume();
+				}
+				catch(Exception e)
+				{
+					error(e);
+				}
 			}
-			catch(Exception e)
-			{
-				error(e);
-			}
+			
+			resetCursorPhase();
 		}
-		
-		resetCursorPhase();
 	}
 	
 	
@@ -247,25 +263,29 @@ public class FxTermView
 
 	protected void handleKeyTyped(KeyEvent ev)
 	{
-		try
+		ATermConnection conn = getConnection();
+		if(conn != null)
 		{
-			String s = ev.getCharacter();
-			if(s.length() == 1)
+			try
 			{
-				int c = s.codePointAt(0);
-				if(c >= 0x20)
+				String s = ev.getCharacter();
+				if(s.length() == 1)
 				{
-					term.handleKey(c);
-					ev.consume();
+					int c = s.codePointAt(0);
+					if(c >= 0x20)
+					{
+						conn.handleKey(c);
+						ev.consume();
+					}
 				}
 			}
+			catch(Exception e)
+			{
+				e.printStackTrace(); // FIX
+			}
+	
+			resetCursorPhase();
 		}
-		catch(Exception e)
-		{
-			e.printStackTrace(); // FIX
-		}
-
-		resetCursorPhase();
 	}
 	
 
@@ -273,14 +293,6 @@ public class FxTermView
 	{
 		// TODO
 		D.print("<BELL>");
-	}
-	
-
-	public void setTerm(GTermVT100 t)
-	{
-		this.term = t;
-		t.setView(this);
-		repaint();
 	}
 	
 	
@@ -753,5 +765,106 @@ public class FxTermView
 		{
 			log.trace("redraw cells=%d in %d ms", count, (System.nanoTime() - start)/1_000_000L);
 		}
+	}
+	
+	
+	public final void setConnection(ATermConnection c)
+	{
+		connection.set(c);
+	}
+	
+	
+	public final ATermConnection getConnection()
+	{
+		return connection.get();
+	}
+	
+	
+	public final ObjectProperty<ATermConnection> connectionProperty()
+	{
+		return connection;
+	}
+	
+	
+	protected void handleConnectionChange(ATermConnection old, ATermConnection conn)
+	{
+		if(old != null)
+		{
+			old.setListener(null);
+			try
+			{
+				old.close();
+			}
+			catch(Throwable e)
+			{
+				log.error(e);
+			}
+		}
+
+		if(conn == null)
+		{
+			setStatus(Status.DISCONNECTED);
+		}
+		else
+		{
+			setStatus(Status.CONNECTING);
+			
+			if(listener == null)
+			{
+				listener = new ATermConnection.Listener()
+				{
+					public void onConnected(ATermConnection c)
+					{
+						FX.later(() -> handleConnected(c));
+					}
+	
+	
+					public void onDisconnected(ATermConnection c, Throwable err)
+					{
+						FX.later(() -> handleDisconnected(c, err));
+					}
+				};
+			}
+			
+			conn.setListener(listener);
+			conn.connect(this);
+		}
+	}
+	
+	
+	protected void handleConnected(ATermConnection c)
+	{
+		if(c == getConnection())
+		{
+			setStatus(Status.CONNECTED);
+		}
+	}
+	
+	
+	protected void handleDisconnected(ATermConnection c, Throwable err)
+	{
+		if(c == getConnection())
+		{
+			if(err == null)
+			{
+				setStatus(Status.DISCONNECTED);
+			}
+			else
+			{
+				setStatus(Status.ERROR);
+			}
+		}
+	}
+	
+	
+	protected void setStatus(Status s)
+	{
+		status.set(s);
+	}
+	
+	
+	public final ReadOnlyProperty<Status> statusProperty()
+	{
+		return status.getReadOnlyProperty();
 	}
 }
