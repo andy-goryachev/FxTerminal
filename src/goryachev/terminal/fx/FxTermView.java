@@ -187,7 +187,7 @@ public class FxTermView
 		if(conn != null)
 		{
 			KeyCode c = ev.getCode();
-			TermKey k = getKey(c);
+			TermKey k = translateKeyCode(c);
 			if(k != null)
 			{
 				try
@@ -219,10 +219,12 @@ public class FxTermView
 	}
 
 
-	protected TermKey getKey(KeyCode c)
+	protected TermKey translateKeyCode(KeyCode c)
 	{
 		switch(c)
 		{
+		case BACK_SPACE:
+			return TermKey.BACKSPACE;
 		case DOWN:
 			return TermKey.DOWN;
 		case ENTER:

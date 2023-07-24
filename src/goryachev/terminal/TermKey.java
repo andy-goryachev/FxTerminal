@@ -7,6 +7,7 @@ package goryachev.terminal;
  */
 public enum TermKey
 {
+	BACKSPACE,
 	DOWN,
 	ENTER,
 	F1,

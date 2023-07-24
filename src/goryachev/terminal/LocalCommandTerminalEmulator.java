@@ -1,7 +1,6 @@
 // Copyright © 2023 Andy Goryachev <andy@goryachev.com>
 package goryachev.terminal;
 import goryachev.common.log.Log;
-import java.io.IOException;
 
 
 /**
@@ -40,19 +39,18 @@ public class LocalCommandTerminalEmulator
 
 	public void handleKey(int ch) throws Exception
 	{
-		// TODO pass ch to connection
-		log.info(ch);
 		conn.userInput(String.valueOf((char)ch));
 	}
 
 
 	public void handleKey(TermKey key) throws Exception
 	{
-		log.info(key);
 		switch(key)
 		{
+		case BACKSPACE:
+			conn.userInput("\b");
+			break;
 		case ENTER:
-			// TODO pass CR
 			conn.userInput("\r");
 			break;
 		}
