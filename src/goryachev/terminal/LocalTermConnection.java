@@ -48,11 +48,15 @@ public class LocalTermConnection
 				if(shell == null)
 				{
 					String[] cmd;
+					String[] env;
 					if(CPlatform.isWindows())
 					{
 						cmd = new String[]
 						{
 							"Powershell.exe"
+						};
+						env = new String[]
+						{
 						};
 					}
 					else
@@ -61,8 +65,12 @@ public class LocalTermConnection
 						{
 							"/bin/bash"
 						};
+						env = new String[]
+						{
+							"TERM=xterm-256color"
+						};
 					}
-					shell = Runtime.getRuntime().exec(cmd);
+					shell = Runtime.getRuntime().exec(cmd, env);
 					
 					// FIX remove
 					var when = shell.onExit();
