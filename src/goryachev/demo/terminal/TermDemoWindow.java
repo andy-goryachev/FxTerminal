@@ -1,4 +1,4 @@
-// Copyright © 2023 Andy Goryachev <andy@goryachev.com>
+// Copyright © 2023-2024 Andy Goryachev <andy@goryachev.com>
 package goryachev.demo.terminal;
 import goryachev.common.log.Log;
 import goryachev.fx.FX;
