@@ -1,5 +1,6 @@
 // Copyright © 2023 Andy Goryachev <andy@goryachev.com>
 package goryachev.terminal;
+import goryachev.common.util.CPlatform;
 import goryachev.common.util.D;
 import java.io.Reader;
 import java.io.Writer;
@@ -12,10 +13,32 @@ public class TestCmdExe
 {
 	public static void main(String[] args) throws Exception
 	{
-		Process p = Runtime.getRuntime().exec(new String[]
+		String[] cmd;
+		String[] env;
+		if(CPlatform.isWindows())
 		{
-			"cmd.exe"
-		});
+			cmd = new String[]
+			{
+				"Powershell.exe"
+			};
+			env = new String[]
+			{
+			};
+		}
+		else
+		{
+			cmd = new String[]
+			{
+				"/bin/bash"
+			};
+			env = new String[]
+			{
+				//"SHELL=/bin/bash",
+				"TERM=xterm-256color"
+				//"TERM_PROGRAM=Apple_Terminal"
+			};
+		}
+		Process p = Runtime.getRuntime().exec(cmd, env);
 		
 		new Thread(() ->
 		{

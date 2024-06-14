@@ -54,11 +54,15 @@ public class LocalTermConnection
 		try
 		{
 			String[] cmd;
+			String[] env;
 			if(CPlatform.isWindows())
 			{
 				cmd = new String[]
 				{
 					"Powershell.exe"
+				};
+				env = new String[]
+				{
 				};
 			}
 			else
@@ -67,9 +71,13 @@ public class LocalTermConnection
 				{
 					"/bin/bash"
 				};
+				env = new String[]
+				{
+					"TERM=xterm-256color"
+				};
 			}
 			
-			process = Runtime.getRuntime().exec(cmd);
+			process = Runtime.getRuntime().exec(cmd, env);
 			
 			CompletableFuture<Process> onExit = process.onExit();
 			Thread t = new Thread("process monitor")
