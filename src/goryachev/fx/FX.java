@@ -1,24 +1,22 @@
-// Copyright © 2016-2023 Andy Goryachev <andy@goryachev.com>
+// Copyright © 2016-2024 Andy Goryachev <andy@goryachev.com>
 package goryachev.fx;
 import goryachev.common.log.Log;
 import goryachev.common.util.CKit;
 import goryachev.common.util.CList;
 import goryachev.common.util.CPlatform;
-import goryachev.common.util.GlobalSettings;
 import goryachev.common.util.IDisconnectable;
 import goryachev.common.util.SystemTask;
 import goryachev.fx.internal.CssTools;
 import goryachev.fx.internal.DisconnectableIntegerListener;
-import goryachev.fx.internal.FxSchema;
 import goryachev.fx.internal.FxStyleHandler;
 import goryachev.fx.internal.ParentWindow;
-import goryachev.fx.internal.WindowsFx;
 import goryachev.fx.table.FxTable;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
 import java.util.function.Consumer;
@@ -54,12 +52,14 @@ import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
 import javafx.scene.control.Labeled;
 import javafx.scene.control.ListView;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableView;
@@ -98,10 +98,13 @@ public final class FX
 	public static final double DEGREES_PER_RADIAN = 180.0 / Math.PI;
 	public static final double GAMMA = 2.2;
 	public static final double ONE_OVER_GAMMA = 1.0 / GAMMA;
-	private static WindowsFx windowsFx = new WindowsFx();
 	private static Text helper;
 	private static final Object PROP_TOOLTIP = new Object();
-
+	
+	// TODO move both to FxSettings?
+	private static final Object PROP_NAME = new Object();
+	private static final Object PROP_SKIP_SETTINGS = new Object();
+	
 	
 	public static FxWindow getWindow(Node n)
 	{
@@ -118,89 +121,35 @@ public final class FX
 	}
 	
 	
-	public static void storeSettings(Node n)
-	{
-		if(n != null)
-		{
-			windowsFx.storeNode(n);
-			GlobalSettings.save();
-		}
-	}
-	
-	
-	public static void restoreSettings(Node n)
-	{
-		if(n != null)
-		{
-			windowsFx.restoreNode(n);
-		}
-	}
-	
-	
-	public static void storeSettings(FxWindow w)
-	{
-		windowsFx.storeWindow(w);
-		GlobalSettings.save();
-	}
-	
-	
-	public static void restoreSettings(FxWindow w)
-	{
-		windowsFx.restoreWindow(w);
-		GlobalSettings.save();
-	}
-	
-	
 	/** 
 	 * disables persisting of settings for this node only.  
 	 * the LocalSettings, and the settings for its children will still be persisted.
 	 */
 	public static void setSkipSettings(Node n)
 	{
-		if(n != null)
-		{
-			FxSchema.setSkipSettings(n);
-		}
+		n.getProperties().put(PROP_SKIP_SETTINGS, Boolean.TRUE);
 	}
 	
 	
-	/** 
-	 * loads application windows stored in the global settings.  
-	 * A window of specified defaultWindowType is created when the layout does not contain any windows saved,
-	 * or when no window of the defaultWindowType was created.
-	 * Generator:
-	 * - for null argument (default window id) must return a non-null instance 
-	 * - may return null window for a non-null window id
-	 */ 
-	public static void openWindows(Function<String,FxWindow> generator, Class<? extends FxWindow> defaultWindowType)
+	public static boolean isSkipSettings(Node n)
 	{
-		windowsFx.openWindows(generator, defaultWindowType);
+		Object x = n.getProperties().get(PROP_SKIP_SETTINGS);
+		return Boolean.TRUE.equals(x);
 	}
 	
 	
-	public static void open(FxWindow w)
+	public static void setSkipSettings(Window w)
 	{
-		windowsFx.open(w);
+		w.getProperties().put(PROP_SKIP_SETTINGS, Boolean.TRUE);
 	}
 	
 	
-	public static void close(FxWindow w)
+	public static boolean isSkipSettings(Window w)
 	{
-		windowsFx.close(w);
+		Object x = w.getProperties().get(PROP_SKIP_SETTINGS);
+		return Boolean.TRUE.equals(x);
 	}
-	
-	
-	public static void exit()
-	{
-		windowsFx.exit();
-	}
-	
-	
-	public static FxAction exitAction()
-	{
-		return windowsFx.exitAction();
-	}
-	
+
 	
 	/** creates a label.  accepts: CssStyle, CssID, FxCtl, Insets, OverrunStyle, Pos, TextAlignment, Color, Node, Background */
 	public static Label label(Object ... attrs)
@@ -213,17 +162,17 @@ public final class FX
 			{
 				// ignore
 			}
-			else if(a instanceof CssStyle)
+			else if(a instanceof CssStyle v)
 			{
-				n.getStyleClass().add(((CssStyle)a).getName());
+				n.getStyleClass().add(v.getName());
 			}
-			else if(a instanceof CssID)
+			else if(a instanceof CssID v)
 			{
-				n.setId(((CssID)a).getID());
+				n.setId(v.getID());
 			}
-			else if(a instanceof FxCtl)
+			else if(a instanceof FxCtl v)
 			{
-				switch((FxCtl)a)
+				switch(v)
 				{
 				case BOLD:
 					n.getStyleClass().add(CssTools.BOLD.getName());
@@ -247,44 +196,44 @@ public final class FX
 					n.setWrapText(true);
 					break;
 				default:
-					throw new Error("?" + a);
+					throw new Error("?" + v);
 				}
 			}
-			else if(a instanceof Insets)
+			else if(a instanceof Insets v)
 			{
-				n.setPadding((Insets)a);
+				n.setPadding(v);
 			}
-			else if(a instanceof OverrunStyle)
+			else if(a instanceof OverrunStyle v)
 			{
-				n.setTextOverrun((OverrunStyle)a);
+				n.setTextOverrun(v);
 			}
-			else if(a instanceof Pos)
+			else if(a instanceof Pos v)
 			{
-				n.setAlignment((Pos)a);
+				n.setAlignment(v);
 			}
-			else if(a instanceof String)
+			else if(a instanceof String s)
 			{
-				n.setText((String)a);
+				n.setText(s);
 			}
-			else if(a instanceof TextAlignment)
+			else if(a instanceof TextAlignment v)
 			{
-				n.setTextAlignment((TextAlignment)a);
+				n.setTextAlignment(v);
 			}
-			else if(a instanceof Color)
+			else if(a instanceof Color v)
 			{
-				n.setTextFill((Color)a);
+				n.setTextFill(v);
 			}
-			else if(a instanceof StringProperty)
+			else if(a instanceof StringProperty v)
 			{
-				n.textProperty().bind((StringProperty)a);
+				n.textProperty().bind(v);
 			}
-			else if(a instanceof Node)
+			else if(a instanceof Node v)
 			{
-				n.setGraphic((Node)a);
+				n.setGraphic(v);
 			}
-			else if(a instanceof Background)
+			else if(a instanceof Background v)
 			{
-				n.setBackground((Background)a);
+				n.setBackground(v);
 			}
 			else
 			{
@@ -307,17 +256,17 @@ public final class FX
 			{
 				// ignore
 			}
-			else if(a instanceof CssStyle)
+			else if(a instanceof CssStyle v)
 			{
-				n.getStyleClass().add(((CssStyle)a).getName());
+				n.getStyleClass().add(v.getName());
 			}
-			else if(a instanceof CssID)
+			else if(a instanceof CssID v)
 			{
-				n.setId(((CssID)a).getID());
+				n.setId(v.getID());
 			}
-			else if(a instanceof FxCtl)
+			else if(a instanceof FxCtl v)
 			{
-				switch((FxCtl)a)
+				switch(v)
 				{
 				case BOLD:
 					n.getStyleClass().add(CssTools.BOLD.getName());
@@ -329,16 +278,16 @@ public final class FX
 					n.setFocusTraversable(false);
 					break;
 				default:
-					throw new Error("?" + a);
+					throw new Error("?" + v);
 				}
 			}
-			else if(a instanceof String)
+			else if(a instanceof String s)
 			{
-				n.setText((String)a);
+				n.setText(s);
 			}
-			else if(a instanceof TextAlignment)
+			else if(a instanceof TextAlignment v)
 			{
-				n.setTextAlignment((TextAlignment)a);
+				n.setTextAlignment(v);
 			}
 			else
 			{
@@ -406,17 +355,17 @@ public final class FX
 				{
 					// ignore
 				}
-				else if(a instanceof CssStyle)
+				else if(a instanceof CssStyle v)
 				{
-					n.getStyleClass().add(((CssStyle)a).getName());
+					n.getStyleClass().add(v.getName());
 				}
-				else if(a instanceof CssID)
+				else if(a instanceof CssID v)
 				{
-					n.setId(((CssID)a).getID());
+					n.setId(v.getID());
 				}
-				else if(a instanceof FxCtl)
+				else if(a instanceof FxCtl v)
 				{
-					switch((FxCtl)a)
+					switch(v)
 					{
 					case BOLD:
 						n.getStyleClass().add(CssTools.BOLD.getName());
@@ -440,13 +389,13 @@ public final class FX
 						n.setFocusTraversable(false);
 						break;
 					case WRAP_TEXT:
-						if(n instanceof Labeled)
+						if(n instanceof Labeled c)
 						{
-							((Labeled)n).setWrapText(true);
+							c.setWrapText(true);
 						}
-						else if(n instanceof TextArea)
+						else if(n instanceof TextArea c)
 						{
-							((TextArea)n).setWrapText(true);
+							c.setWrapText(true);
 						}
 						else
 						{
@@ -454,54 +403,54 @@ public final class FX
 						}
 						break;
 					default:
-						throw new Error("?" + a);
+						throw new Error("?" + v);
 					}
 				}
-				else if(a instanceof Insets)
+				else if(a instanceof Insets v)
 				{
-					((Region)n).setPadding((Insets)a);
+					((Region)n).setPadding(v);
 				}
-				else if(a instanceof OverrunStyle)
+				else if(a instanceof OverrunStyle v)
 				{
-					((Labeled)n).setTextOverrun((OverrunStyle)a);
+					((Labeled)n).setTextOverrun(v);
 				}
-				else if(a instanceof Pos)
+				else if(a instanceof Pos v)
 				{
-					if(n instanceof Labeled)
+					if(n instanceof Labeled c)
 					{
-						((Labeled)n).setAlignment((Pos)a);
+						c.setAlignment(v);
 					}
-					else if(n instanceof TextField)
+					else if(n instanceof TextField c)
 					{
-						((TextField)n).setAlignment((Pos)a);
+						c.setAlignment(v);
 					}
 					else
 					{
 						throw new Error("?" + n);
 					}
 				}
-				else if(a instanceof String)
+				else if(a instanceof String s)
 				{
-					if(n instanceof Labeled)
+					if(n instanceof Labeled c)
 					{
-						((Labeled)n).setText((String)a);
+						c.setText(s);
 					}
-					else if(n instanceof TextInputControl)
+					else if(n instanceof TextInputControl c)
 					{
-						((TextInputControl)n).setText((String)a);
+						c.setText(s);
 					}
 					else
 					{
 						throw new Error("?" + n);
 					}
 				}
-				else if(a instanceof TextAlignment)
+				else if(a instanceof TextAlignment v)
 				{
-					((Labeled)n).setTextAlignment((TextAlignment)a);
+					((Labeled)n).setTextAlignment(v);
 				}
-				else if(a instanceof Background)
+				else if(a instanceof Background v)
 				{
-					((Region)n).setBackground((Background)a);
+					((Region)n).setBackground(v);
 				}
 				else
 				{
@@ -634,33 +583,38 @@ public final class FX
 	
 	
 	/** 
-	 * returns parent window or null, accepts either a Node or a Window.
-	 * unfortunately, FX Window is not a Node, so we have to lose some type safety 
+	 * Returns parent window or null.
+	 * Accepts either a Node, a Window, or a MenuItem.
 	 */
-	public static Window getParentWindow(Object nodeOrWindow)
+	public static Window getParentWindow(Object x)
 	{
-		if(nodeOrWindow == null)
+		if(x == null)
 		{
 			return null;
 		}
-		else if(nodeOrWindow instanceof Window)
+		else if(x instanceof Window w)
 		{
-			return (Window)nodeOrWindow;
+			return w;
 		}
-		else if(nodeOrWindow instanceof Node)
+		else if(x instanceof Node n)
 		{
-			Scene s = ((Node)nodeOrWindow).getScene();
+			Scene s = n.getScene();
 			if(s != null)
 			{
 				return s.getWindow();
 			}
 			return null;
 		}
+		else if(x instanceof MenuItem m)
+		{
+			ContextMenu cm = m.getParentPopup();
+			return cm == null ? null : cm.getOwnerWindow();
+		}
 		else
 		{
-			throw new Error("node or window");
+			throw new Error("node, window, or menu item " + x);
 		}
-	}
+	}	
 	
 	
 	/** shortcut for Platform.runLater() */
@@ -763,29 +717,6 @@ public final class FX
 		double bottom = w.getY() + w.getHeight() - b.getMaxY();
 
 		return new Insets(top, right, bottom, left);
-	}
-	
-	
-	/** assign a name to the node for the purposes of saving settings */
-	public static void setName(Node n, String name)
-	{
-		FxSchema.setName(n, name);
-	}
-	
-	
-	public static String getName(Node n)
-	{
-		return FxSchema.getName(n);
-	}
-	
-	
-	/** 
-	 * attaches a handler to be notified when settings for the node have been loaded.  
-	 * setting null clears the handler 
-	 */
-	public static void setOnSettingsLoaded(Node n, Runnable r)
-	{
-		FxSchema.setOnSettingsLoaded(n, r);
 	}
 	
 	
@@ -1018,12 +949,6 @@ public final class FX
 	}
 	
 	
-	public static void storeSettings()
-	{
-		windowsFx.storeSettings();
-	}
-	
-	
 	public static ObservableValue toObservableValue(Object x)
 	{
 		if(x == null)
@@ -1062,29 +987,15 @@ public final class FX
 	{
 		for(Object x: nodes)
 		{
-			if(x instanceof Node)
+			if(x instanceof Node n)
 			{
-				((Node)x).setDisable(on);
+				n.setDisable(on);
 			}
-			else if(x instanceof FxAction)
+			else if(x instanceof FxAction a)
 			{
-				((FxAction)x).setDisabled(on);
+				a.setDisabled(on);
 			}
 		}
-	}
-	
-	
-	/** adds a callback which will be invoked before any FxWindow gets shown */
-	public static void addWindowMonitor(Consumer<FxWindow> monitor)
-	{
-		windowsFx.addWindowMonitor(monitor);
-	}
-	
-	
-	/** removes a window monitor */
-	public static void removeWindowMonitor(Consumer<FxWindow> monitor)
-	{
-		windowsFx.removeWindowMonitor(monitor);
 	}
 	
 
@@ -2195,6 +2106,88 @@ public final class FX
 		catch(Exception e)
 		{
 			log.error(e);
+		}
+	}
+
+	
+	public static void setName(Node n, String name)
+	{
+		n.getProperties().put(PROP_NAME, name);
+	}
+	
+	
+	public static String getName(Node n)
+	{
+		Object x = n.getProperties().get(PROP_NAME);
+		if(x instanceof String s)
+		{
+			return s;
+		}
+		return null;
+	}
+	
+	
+	public static void setName(Window w, String name)
+	{
+		Objects.nonNull(name);
+		w.getProperties().put(PROP_NAME, name);
+	}
+	
+	
+	public static String getName(Window w)
+	{
+		Object x = w.getProperties().get(PROP_NAME);
+		if(x instanceof String s)
+		{
+			return s;
+		}
+		return null;
+	}
+	
+	
+	public static void center(Window window)
+	{
+		if(window instanceof Stage w)
+		{
+			if(w.getOwner() instanceof Stage owner)
+			{
+				Parent root = w.getScene().getRoot(); 
+				root.applyCss();
+				root.layout();
+
+				double width = root.prefWidth(-1);
+				double height = root.prefHeight(width);
+
+				Scene ownerScene = owner.getScene();
+				double ownerWidth = ownerScene.getRoot().prefWidth(-1);
+				double ownerHeight = ownerScene.getRoot().prefHeight(ownerWidth);
+				double cascadeOffset = 20;
+
+				double x;
+				if(width < ownerWidth)
+				{
+					x = owner.getX() + (ownerScene.getWidth() - width) / 2.0;
+				}
+				else
+				{
+					x = owner.getX() + cascadeOffset;
+					w.setWidth(width);
+				}
+
+				double y;
+				if(height < ownerHeight)
+				{
+					double titleBarHeight = ownerScene.getY();
+					y = owner.getY() + (titleBarHeight + ownerScene.getHeight() - height) / 2.0;
+				}
+				else
+				{
+					y = owner.getY() + cascadeOffset;
+				}
+
+				w.setX(x);
+				w.setY(y);
+			}
 		}
 	}
 }

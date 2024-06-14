@@ -1,4 +1,4 @@
-// Copyright © 2005-2023 Andy Goryachev <andy@goryachev.com>
+// Copyright © 2005-2024 Andy Goryachev <andy@goryachev.com>
 package goryachev.common.util;
 import java.lang.reflect.Array;
 import java.util.Collection;
@@ -974,6 +974,18 @@ public class TextTools
 	
 	
 	public static String replace(String text, String pattern, String newPattern)
+	{
+		if(text != null)
+		{
+			SB sb = new SB(text);
+			sb.replace(pattern, newPattern);
+			return sb.toString();
+		}
+		return null;
+	}
+	
+	
+	public static String replace(String text, char pattern, char newPattern)
 	{
 		if(text != null)
 		{
