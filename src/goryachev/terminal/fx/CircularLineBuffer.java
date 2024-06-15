@@ -18,18 +18,21 @@ public class CircularLineBuffer
 	}
 
 
+	@Override
 	public int size()
 	{
 		return buffer.size();
 	}
 	
 	
+	@Override
 	public int getCapacity()
 	{
 		return buffer.getCapacity();
 	}
 
 
+	@Override
 	public ScreenLine get(int ix)
 	{
 		if(ix < 0)
@@ -40,18 +43,21 @@ public class CircularLineBuffer
 	}
 
 
+	@Override
 	public void add(ScreenLine item)
 	{
 		buffer.add(item);
 	}
 
 
+	@Override
 	public void scroll(int top, int bottom, boolean up)
 	{
 		throw new Error("implement scroll!");
 	}
 	
 	
+	@Override
 	public void updateSize(int colCount, int rowCount)
 	{
 		throw new Error("implement updateSize!");

@@ -24,6 +24,7 @@ public class LocalTermConnection
 	}
 
 
+	@Override
 	public void close() throws IOException
 	{
 		Process p = process;
@@ -40,12 +41,14 @@ public class LocalTermConnection
 	}
 
 
+	@Override
 	public void setTerminalSize(int cols, int rows, int width, int height)
 	{
 		// no-op
 	}
 
 
+	@Override
 	public void connect(ITermView view)
 	{
 		emulator().setView(view);
@@ -82,6 +85,7 @@ public class LocalTermConnection
 			CompletableFuture<Process> onExit = process.onExit();
 			Thread t = new Thread("process monitor")
 			{
+				@Override
 				public void run()
 				{
 					try
@@ -103,6 +107,7 @@ public class LocalTermConnection
 			BufferedReader stdout = process.inputReader();
 			Thread stdoutThread = new Thread("stdout reader")
 			{
+				@Override
 				public void run()
 				{
 					try
@@ -128,6 +133,7 @@ public class LocalTermConnection
 			BufferedReader stderr = process.errorReader();
 			Thread stderrThread = new Thread("stdout reader")
 			{
+				@Override
 				public void run()
 				{
 					try

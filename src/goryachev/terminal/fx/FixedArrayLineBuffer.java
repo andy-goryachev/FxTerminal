@@ -24,30 +24,35 @@ public class FixedArrayLineBuffer
 	}
 	
 	
+	@Override
 	public int size()
 	{
 		return lines.length;
 	}
 
 
+	@Override
 	public int getCapacity()
 	{
 		return lines.length;
 	}
 
 
+	@Override
 	public ScreenLine get(int ix)
 	{
 		return lines[ix];
 	}
 
 
+	@Override
 	public void add(ScreenLine item)
 	{
 		throw new Error();
 	}
 
 
+	@Override
 	public void scroll(int top, int bottom, boolean up)
 	{
 		// TODO check
@@ -71,6 +76,7 @@ public class FixedArrayLineBuffer
 	}
 	
 	
+	@Override
 	public void updateSize(int colCount, int rowCount)
 	{
 		ScreenLine[] ls = new ScreenLine[rowCount];

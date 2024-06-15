@@ -1181,6 +1181,7 @@ public final class FX
 							// clicks on the owner node
 							EventHandler<MouseEvent> li = new EventHandler<MouseEvent>()
 							{
+								@Override
 								public void handle(MouseEvent event)
 								{
 									m.hide();
@@ -1234,6 +1235,7 @@ public final class FX
 	{
 		p.addListener(new ChangeListener<T>()
 		{
+			@Override
 			public void changed(ObservableValue<? extends T> observable, T old, T cur)
 			{
 				c.accept(cur);
@@ -1505,6 +1507,7 @@ public final class FX
 	{
 		p.addListener(new InvalidationListener()
 		{
+			@Override
 			public void invalidated(Observable observable)
 			{
 				r.run();
@@ -1761,18 +1764,21 @@ public final class FX
 	{
 		return new TransformationList<T,S>(source)
 		{
+			@Override
 			public int getSourceIndex(int index)
 			{
 				return index;
 			}
 			
 			
+			@Override
 			public int getViewIndex(int index)
 			{
 				return index;
 			}
 
 
+			@Override
 			public T get(int index)
 			{
 				S src = getSource().get(index);
@@ -1780,16 +1786,19 @@ public final class FX
 			}
 
 
+			@Override
 			public int size()
 			{
 				return getSource().size();
 			}
 			
 			
+			@Override
 			protected void sourceChanged(Change<? extends S> c)
 			{
 				fireChange(new Change<T>(this)
 				{
+					@Override
 					public List<T> getRemoved()
 					{
 						ArrayList<T> rv = new ArrayList<>(c.getRemovedSize());
@@ -1801,66 +1810,77 @@ public final class FX
 					}
 					
 
+					@Override
 					public boolean wasAdded()
 					{
 						return c.wasAdded();
 					}
 
 
+					@Override
 					public boolean wasRemoved()
 					{
 						return c.wasRemoved();
 					}
 
 
+					@Override
 					public boolean wasReplaced()
 					{
 						return c.wasReplaced();
 					}
 
 
+					@Override
 					public boolean wasUpdated()
 					{
 						return c.wasUpdated();
 					}
 
 
+					@Override
 					public boolean wasPermutated()
 					{
 						return c.wasPermutated();
 					}
 
 
+					@Override
 					public int getPermutation(int ix)
 					{
 						return c.getPermutation(ix);
 					}
 
 
+					@Override
 					protected int[] getPermutation()
 					{
 						return new int[0];
 					}
 
 
+					@Override
 					public int getFrom()
 					{
 						return c.getFrom();
 					}
 
 
+					@Override
 					public int getTo()
 					{
 						return c.getTo();
 					}
 
 
+					@Override
 					public boolean next()
 					{
 						return c.next();
 					}
 
 
+					@Override
 					public void reset()
 					{
 						c.reset();

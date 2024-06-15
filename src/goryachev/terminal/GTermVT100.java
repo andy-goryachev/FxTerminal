@@ -85,6 +85,7 @@ public class GTermVT100 implements ITermEmulator
 //	}
 	
 	
+	@Override
 	public void setView(ITermView v)
 	{
 		this.view = v;
@@ -224,6 +225,7 @@ public class GTermVT100 implements ITermEmulator
 	}
 	
 	
+	@Override
 	public void handleKey(TermKey k) throws Exception
 	{
 		String s = getKeySequence(k);
@@ -284,6 +286,7 @@ public class GTermVT100 implements ITermEmulator
 	}
 	
 	
+	@Override
 	public void handleKey(int ch) throws Exception
 	{
 		String s = TermTools.codePointToString(ch);
@@ -421,6 +424,7 @@ public class GTermVT100 implements ITermEmulator
 	}
 	
 
+	@Override
 	public void setTerminalSize(int cols, int rows, int width, int height)
 	{
 		reset();

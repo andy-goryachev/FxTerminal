@@ -291,6 +291,7 @@ public class FxTermView
 	}
 	
 
+	@Override
 	public void bell()
 	{
 		// TODO
@@ -298,6 +299,7 @@ public class FxTermView
 	}
 	
 	
+	@Override
 	public void scroll(int top, int bottom, boolean up)
 	{
 		log.debug("scroll top=%d, bottom=%d, up=%s", top, bottom, up);
@@ -310,12 +312,14 @@ public class FxTermView
 	}
 	
 	
+	@Override
 	public int getRowCount()
 	{
 		return rowCount;
 	}
 	
 	
+	@Override
 	public int getColumnCount()
 	{
 		return colCount;
@@ -406,6 +410,7 @@ public class FxTermView
 	}
 	
 	
+	@Override
 	public int draw(int x, int y, int codePoint)
 	{
 		synchronized(lock)
@@ -453,6 +458,7 @@ public class FxTermView
 	}
 
 
+	@Override
 	public void clearLine(int x, int y)
 	{
 		synchronized(lock)
@@ -484,6 +490,7 @@ public class FxTermView
 	}
 	
 	
+	@Override
 	public void hideCursor()
 	{
 		synchronized(lock)
@@ -495,6 +502,7 @@ public class FxTermView
 	}
 	
 	
+	@Override
 	public void showCursor(int x, int y)
 	{
 		synchronized(lock)
@@ -519,6 +527,7 @@ public class FxTermView
 	}
 	
 	
+	@Override
 	public void setForeground(TermColor c)
 	{
 		synchronized(lock)
@@ -528,6 +537,7 @@ public class FxTermView
 	}
 	
 	
+	@Override
 	public void setBackground(TermColor c)
 	{
 		synchronized(lock)
@@ -568,6 +578,7 @@ public class FxTermView
 	}
 	
 	
+	@Override
 	public void clearAttributes()
 	{
 		synchronized(lock)
@@ -586,6 +597,7 @@ public class FxTermView
 	}
 	
 	
+	@Override
 	public void setBlink()
 	{
 		synchronized(lock)
@@ -595,6 +607,7 @@ public class FxTermView
 	}
 	
 	
+	@Override
 	public void setBold()
 	{
 		synchronized(lock)
@@ -604,6 +617,7 @@ public class FxTermView
 	}
 	
 	
+	@Override
 	public void setConcealed()
 	{
 		synchronized(lock)
@@ -628,6 +642,7 @@ public class FxTermView
 	}
 	
 	
+	@Override
 	public void setReversed()
 	{
 		synchronized(lock)
@@ -637,6 +652,7 @@ public class FxTermView
 	}
 	
 	
+	@Override
 	public void setUnderscore()
 	{
 		synchronized(lock)
@@ -815,12 +831,14 @@ public class FxTermView
 			{
 				listener = new ATermConnection.Listener()
 				{
+					@Override
 					public void onConnected(ATermConnection c)
 					{
 						FX.later(() -> handleConnected(c));
 					}
 	
 	
+					@Override
 					public void onDisconnected(ATermConnection c, Throwable err)
 					{
 						FX.later(() -> handleDisconnected(c, err));

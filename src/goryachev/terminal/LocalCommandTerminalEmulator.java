@@ -19,6 +19,7 @@ public class LocalCommandTerminalEmulator
 	}
 	
 	
+	@Override
 	public void setView(ITermView view)
 	{
 		this.view = view;
@@ -31,18 +32,21 @@ public class LocalCommandTerminalEmulator
 	}
 
 
+	@Override
 	public void setTerminalSize(int cols, int rows, int width, int height)
 	{
 		// no-op
 	}
 
 
+	@Override
 	public void handleKey(int ch) throws Exception
 	{
 		conn.userInput(String.valueOf((char)ch));
 	}
 
 
+	@Override
 	public void handleKey(TermKey key) throws Exception
 	{
 		switch(key)

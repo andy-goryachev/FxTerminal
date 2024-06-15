@@ -24,6 +24,7 @@ public class TermDemoApp
 	}
 	
 	
+	@Override
 	public void init() throws Exception
 	{
 		File settingsFile = new File(CPlatform.getSettingsFolder(), "TermDemo/ui.conf");
@@ -33,6 +34,7 @@ public class TermDemoApp
 	}
 
 
+	@Override
 	public void start(Stage s) throws Exception
 	{
 		new TermDemoWindow().open();
