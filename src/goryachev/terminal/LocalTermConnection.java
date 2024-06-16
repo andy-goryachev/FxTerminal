@@ -42,9 +42,10 @@ public class LocalTermConnection
 
 
 	@Override
-	public void setTerminalSize(int cols, int rows, int width, int height)
+	public void setTerminalSize(int cols, int rows, double canvasWidth, double canvasHeight)
 	{
-		// no-op
+		// TODO
+		log.debug("cols=%d rows=%d w=%f h=%f", cols, rows, canvasWidth, canvasHeight);
 	}
 
 

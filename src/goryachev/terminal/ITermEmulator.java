@@ -17,5 +17,5 @@ public interface ITermEmulator
 
 	
 	/** informs the underlying process about the view size change */
-	public void setTerminalSize(int cols, int rows, int width, int height);
+	public void setTerminalSize(int cols, int rows, double canvasWidth, double canvasHeight);
 }

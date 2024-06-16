@@ -33,7 +33,7 @@ public class LocalCommandTerminalEmulator
 
 
 	@Override
-	public void setTerminalSize(int cols, int rows, int width, int height)
+	public void setTerminalSize(int cols, int rows, double canvasWidth, double canvasHeight)
 	{
 		// no-op
 	}

@@ -425,13 +425,13 @@ public class GTermVT100 implements ITermEmulator
 	
 
 	@Override
-	public void setTerminalSize(int cols, int rows, int width, int height)
+	public void setTerminalSize(int cols, int rows, double canvasWidth, double canvasHeight)
 	{
 		reset();
 		
 		if(connection != null)
 		{
-			connection.setTerminalSize(cols, rows, width, height);
+			connection.setTerminalSize(cols, rows, canvasWidth, canvasHeight);
 		}
 		
 		// TODO

@@ -43,9 +43,9 @@ public abstract class ATermConnection<T extends ITermEmulator> implements Closea
 	
 	
 	/** informs the terminal emulator about the view size change */
-	public void setTerminalSize(int cols, int rows, int width, int height)
+	public void setTerminalSize(int cols, int rows, double canvasWidth, double canvasHeight)
 	{
-		emulator.setTerminalSize(cols, rows, width, height);
+		emulator.setTerminalSize(cols, rows, canvasWidth, canvasHeight);
 	}
 	
 	
